@@ -278,10 +278,10 @@ int main(int argc, char **argv) {
   </body>
 </html>
 ```
+![스크린샷 2021-10-08 오후 1 54 50](https://user-images.githubusercontent.com/74812188/136501360-85922bf9-8412-43a9-8047-45acc4a3ffb0.png)
 
-![스크린샷 2021-10-08 오후 1.54.50.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/82790f5e-8cd7-4188-8523-b67050acc395/스크린샷_2021-10-08_오후_1.54.50.png)
+![스크린샷 2021-10-08 오후 1 55 24](https://user-images.githubusercontent.com/74812188/136501365-5f2b4798-2ef4-4e2f-b07d-b5dd63a4d3f3.png)
 
-![스크린샷 2021-10-08 오후 1.55.24.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/25937884-6427-410b-8e45-cfe718419302/스크린샷_2021-10-08_오후_1.55.24.png)
 
 GET 방식으로 보내게 되면 URL에 데이터가 표시되는 걸 확인 할 수 있다.
 
@@ -308,9 +308,10 @@ hobby.innerText = getParameterByName("hobby");
 
 URL에서 필요한 데이터를 추출해 사용했다.
 
-![스크린샷 2021-10-08 오후 1.57.37.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/1ca6bdc0-4523-4360-9d39-0947640e39c4/스크린샷_2021-10-08_오후_1.57.37.png)
+![스크린샷 2021-10-08 오후 1 57 37](https://user-images.githubusercontent.com/74812188/136501377-70edf988-7eb2-4400-bffd-d7003239cbe5.png)
 
-![스크린샷 2021-10-08 오후 1.58.17.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/0d817470-4ec2-4b2d-85dd-43547a44fdd5/스크린샷_2021-10-08_오후_1.58.17.png)
+![스크린샷 2021-10-08 오후 1 58 17](https://user-images.githubusercontent.com/74812188/136501384-d00ce5d1-5b4c-437f-9c0f-928de4d730a6.png)
+
 
 반면 POST 방식은 URL로 데이터를 확인 할 수 없다.
 
@@ -330,6 +331,6 @@ if(strcmp(method,"POST") == TRUE_CMP){
 
 서버 코드에서 본문을 추출하는 부분이다.
 
-![스크린샷 2021-10-08 오후 2.01.10.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/2911190f-6848-483c-ac97-ba8dec360592/스크린샷_2021-10-08_오후_2.01.10.png)
+![스크린샷 2021-10-08 오후 2 01 10](https://user-images.githubusercontent.com/74812188/136501402-80cce561-251d-4266-a0a7-53fef3fbc61b.png)
 
 다음과 같은 값이 출력되는데 한글이라 깨져서 출력되는 것일 뿐 정상적으로 전송이 된다.
