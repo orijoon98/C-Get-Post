@@ -1,2 +1,335 @@
-# C-Get-Post
-C 서버로 Get, Post 연습
+# C 서버 GET POST
+
+## 목적
+
+- C서버 기능 확장하기
+- GET, POST 연습해보기
+- URL 파라미터 이해해보기
+
+## 참고
+
+[C언어 HTTP 서버](https://www.notion.so/C-HTTP-426fa63fd6dc43f9b4866d1491d4dc59)
+
+## GET
+
+- 입력한 데이터를 URL에 붙여서 전송한다.
+- 전송할 수 있는 데이터는 256바이트를 넘을 수 없다.
+- 전송 속도는 POST 방식보다 빠르다.
+
+## POST
+
+- 입력한 데이터를 본문안에 포함해서 전송한다.
+- 입력한 데이터가 URL에 보이지 않으므로 GET 방식보다 보안에 우수하다.
+- 전송할 데이터의 길이에 제한이 없다.
+- 복잡한 형태의 데이터를 전송할 때 유용하다.
+
+## 서버 코드
+
+```c
+#define BUF_SIZE 1000
+#define HEADER_FMT "HTTP/1.1 %d %s\nCache-Control: max-age=0\nContent-Length: %ld\nContent-Type: %s\n\n"
+#define NOT_FOUND_CONTENT "<h1>404 Not Found</h1>\n"
+#define SERVER_ERROR_CONTENT "<h1>500 Internal Server Error</h1>\n"
+
+#define TRUE 1
+#define FALSE 0
+#define TRUE_CMP 0
+#define FALSE_CMP 1
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+/*
+@func assign address to the created socket lsock(sd)
+@return bind() return value
+*/
+int bind_lsock(int lsock, int port) {
+    struct sockaddr_in sin;
+
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(INADDR_ANY);
+    sin.sin_port = htons(port);
+
+    return bind(lsock, (struct sockaddr *)&sin, sizeof(sin));
+}
+
+void fill_header(char *header, int status, long len, char *type) {
+    char status_text[40];
+
+    switch (status) {
+        case 200:
+            strcpy(status_text, "OK");
+            break;
+        case 404:
+            strcpy(status_text, "Not Found");
+            break;
+        case 500:
+        default:
+            strcpy(status_text, "Internal Server Error");
+            break;
+    }
+    sprintf(header, HEADER_FMT, status, status_text, len, type);
+}
+
+/* @func find content type from uri @return */
+void find_mime(char *ct_type, char *uri) {
+    char *ext = strrchr(uri, '.');
+    if (!strcmp(ext, ".html"))
+        strcpy(ct_type, "text/html");
+    else if (!strcmp(ext, ".jpg") || !strcmp(ext, ".jpeg"))
+        strcpy(ct_type, "image/jpeg");
+    else if (!strcmp(ext, ".png"))
+        strcpy(ct_type, "image/png");
+    else if (!strcmp(ext, ".css"))
+        strcpy(ct_type, "text/css");
+    else if (!strcmp(ext, ".js"))
+        strcpy(ct_type, "text/javascript");
+    else
+        strcpy(ct_type, "text/plain");
+}
+
+/* @func handler for not found @return */
+void handle_404(int asock) {
+    char header[BUF_SIZE];
+    fill_header(header, 404, sizeof(NOT_FOUND_CONTENT), "text/html");
+    write(asock, header, strlen(header));
+    write(asock, NOT_FOUND_CONTENT, sizeof(NOT_FOUND_CONTENT));
+}
+
+/* @func handler for internal server error @return */
+void handle_500(int asock) {
+    char header[BUF_SIZE];
+    fill_header(header, 500, sizeof(SERVER_ERROR_CONTENT), "text/html");
+
+    write(asock, header, strlen(header));
+    write(asock, SERVER_ERROR_CONTENT, sizeof(SERVER_ERROR_CONTENT));
+}
+
+/* @func main http handler; try to open and send requested resource, calls error handler on failure @return */
+void http_handler(int asock) {
+    char header[BUF_SIZE];
+    char buf[BUF_SIZE];
+
+    if (read(asock, buf, BUF_SIZE) < 0) {
+        perror("[ERR] Failed to read request.\n");
+        handle_500(asock);
+        return;
+    }
+
+    char *method = strtok(buf, " ");
+    char *uri = strtok(NULL, " ");
+    if (method == NULL || uri == NULL) {
+        perror("[ERR] Failed to identify method, URI.\n");
+        handle_500(asock);
+        return;
+    }
+
+    printf("[INFO] Handling Request: method=%s, URI=%s\n", method, uri);
+    if(strcmp(method,"POST") == TRUE_CMP){
+        char *postResult;
+        while(TRUE){
+            char *tmp = strtok(NULL, " ");
+            if(tmp == NULL) break;
+            postResult = tmp;
+        }
+        printf("%s\n", postResult);
+    }
+
+    char safe_uri[BUF_SIZE];
+    char *local_uri;
+    struct stat st;
+
+    if(strtok(uri, "?") != NULL)
+        uri = strtok(uri, "?");
+
+    strcpy(safe_uri, uri);
+
+    if (!strcmp(safe_uri, "/"))
+        strcpy(safe_uri, "/index.html");
+
+    local_uri = safe_uri + 1;
+    if (stat(local_uri, &st) < 0) {
+        perror("[WARN] No file found matching URI.\n");
+        handle_404(asock);
+        return;
+    }
+
+    int fd = open(local_uri, O_RDONLY);
+    if (fd < 0) {
+        perror("[ERR] Failed to open file.\n");
+        handle_500(asock);
+        return;
+    }
+
+    int ct_len = st.st_size;
+    char ct_type[40];
+    find_mime(ct_type, local_uri);
+    fill_header(header, 200, ct_len, ct_type);
+    write(asock, header, strlen(header));
+
+    int cnt;
+    while ((cnt = read(fd, buf, BUF_SIZE)) > 0)
+        write(asock, buf, cnt);
+}
+
+int main(int argc, char **argv) {
+    int port, pid;
+    int lsock, asock;
+
+    struct sockaddr_in remote_sin;
+    socklen_t remote_sin_len;
+
+    if (argc < 2) {
+        printf("Usage: \n");
+        printf("\t%s {port}: runs mini HTTP server.\n", argv[0]);
+        exit(0);
+    }
+
+    port = atoi(argv[1]);
+    printf("[INFO] The server will listen to port: %d.\n", port);
+
+    //소켓 만들기
+    lsock = socket(AF_INET, SOCK_STREAM, 0);
+    if (lsock < 0) {
+        perror("[ERR] failed to create lsock.\n");
+        exit(1);
+    }
+
+    //프로세스를 소켓에 바인드하기
+    if (bind_lsock(lsock, port) < 0) {
+        perror("[ERR] failed to bind lsock.\n");
+        exit(1);
+    }
+
+    //연결 대기열 만들기
+    if (listen(lsock, 10) < 0) {
+        perror("[ERR] failed to listen lsock.\n");
+        exit(1);
+    }
+
+    // to handle zombie process
+    struct sigaction sa;
+    sa.sa_handler = SIG_IGN;
+    sa.sa_flags = 0;
+    sigaction(SIGCHLD, &sa, NULL);
+
+    while (1) {
+        printf("[INFO] waiting...\n");
+        remote_sin_len = sizeof(remote_sin);
+        asock = accept(lsock, (struct sockaddr *)&remote_sin, &remote_sin_len);
+        if (asock < 0) {
+            perror("[ERR] failed to accept.\n");
+            continue;
+        }
+
+        pid = fork();
+        if (pid == 0) {  // 자식 프로세스
+            close(lsock);
+            http_handler(asock);
+            close(asock);
+            exit(0);
+        }
+        if (pid != 0) { // 부모 프로세스
+            close(asock);
+        }
+        if (pid < 0) {
+            perror("[ERR] failed to fork.\n");
+        }
+    }
+}
+```
+
+## 예제
+
+```html
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title></title>
+  </head>
+  <body>
+    <form action="get.html" method="get">
+      이름 : <input type="text" name="name" size="10" /><br />
+      주소 : <input type="text" name="address" size="30" /><br />
+      취미 :
+      <input type="checkbox" name="hobby" value="game" />게임
+      <input type="checkbox" name="hobby" value="travel" />여행
+      <input type="checkbox" name="hobby" value="reading" />독서
+      <br />
+      <input type="submit" value="GET" />
+    </form>
+    <form action="post.html" method="post">
+      이름 : <input type="text" name="name" size="10" /><br />
+      주소 : <input type="text" name="address" size="30" /><br />
+      취미 :
+      <input type="checkbox" name="hobby" value="game" />게임
+      <input type="checkbox" name="hobby" value="travel" />여행
+      <input type="checkbox" name="hobby" value="reading" />독서
+      <br />
+      <input type="submit" value="POST" />
+    </form>
+  </body>
+</html>
+```
+
+![스크린샷 2021-10-08 오후 1.54.50.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/82790f5e-8cd7-4188-8523-b67050acc395/스크린샷_2021-10-08_오후_1.54.50.png)
+
+![스크린샷 2021-10-08 오후 1.55.24.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/25937884-6427-410b-8e45-cfe718419302/스크린샷_2021-10-08_오후_1.55.24.png)
+
+GET 방식으로 보내게 되면 URL에 데이터가 표시되는 걸 확인 할 수 있다.
+
+? 이후에 데이터가 표시 되는데 A = B 형식으로 표현되고 새로운 데이터가 추가 될 때마다 &로 구분해준다.
+
+```jsx
+var names = document.getElementById("name");
+var address = document.getElementById("address");
+var hobby = document.getElementById("hobby");
+
+function getParameterByName(name) {
+  name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+  var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+    results = regex.exec(location.search);
+  return results == null
+    ? ""
+    : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+names.innerText = getParameterByName("name");
+address.innerText = getParameterByName("address");
+hobby.innerText = getParameterByName("hobby");
+```
+
+URL에서 필요한 데이터를 추출해 사용했다.
+
+![스크린샷 2021-10-08 오후 1.57.37.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/1ca6bdc0-4523-4360-9d39-0947640e39c4/스크린샷_2021-10-08_오후_1.57.37.png)
+
+![스크린샷 2021-10-08 오후 1.58.17.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/0d817470-4ec2-4b2d-85dd-43547a44fdd5/스크린샷_2021-10-08_오후_1.58.17.png)
+
+반면 POST 방식은 URL로 데이터를 확인 할 수 없다.
+
+데이터는 본문에 포함돼서 전달되는데 서버에서 이 부분을 추출해서 출력해봤다.
+
+```c
+if(strcmp(method,"POST") == TRUE_CMP){
+	char *postResult;
+  while(TRUE){
+	  char *tmp = strtok(NULL, " ");
+    if(tmp == NULL) break;
+    postResult = tmp;
+  }
+  printf("%s\n", postResult);
+}
+```
+
+서버 코드에서 본문을 추출하는 부분이다.
+
+![스크린샷 2021-10-08 오후 2.01.10.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/2911190f-6848-483c-ac97-ba8dec360592/스크린샷_2021-10-08_오후_2.01.10.png)
+
+다음과 같은 값이 출력되는데 한글이라 깨져서 출력되는 것일 뿐 정상적으로 전송이 된다.
